@@ -1,45 +1,174 @@
-<header><a href="/example/jQuery">Sails.UnderJS Examples: Backbone.JS (Under Construction)</a></header>
+<script src="/js/jquery-1.9.1.min.js"></script>
+<script src="/js/handlebars.js"></script>
+<script src="/js/underscore.min.js"></script>
+<script src="/js/backbone.min.js"></script>
+
+<header><a href="/example/backbone">Sails.JS Examples: Backbone</a></header>
 
 <div id="content">
-	<div class='players'>
-	</div>
-
-	<div class='details'>
-		<div class="name">Click a Player to select!</div>
-		<div class="controls"></div>
-	</div>
-</div>
+</div> 
 
 <footer class="clear">&copy;2013 Nobody<div class="float_right"><a href="/">Examples</a></div></footer>
 
+<!-- Templates -->
+<script type="text/x-handlebars" id="tpl-player-list-item">
+	<span class="name">{{name}}</span><span class="score">{{score}}</span>
+</script>
+
+<script type="text/x-handlebars" id="tpl-player-details">
+	<div class="name">{{name}}</div>
+	<div class="controls"><input id="addPoints" type="submit" value="Add 5 points"/></div>
+</script>
+
+<script type="text/x-handlebars" id="tpl-player-details-default">
+	<div>Click a Player to select!</div>
+</script>
+
+
 <script>
-var players;
-var socket = io.connect();
-socket.request('/players',{},function(response) {
-	jQuery.each(response, function(key, player) {
-		$('.players').append('<div id="' + player.id + '" class="player"><span class="name">' + player.name + '</span><span class="score">' + player.score + '</span></div>');
-	});
-	jQuery(document).ready(function() {
-		$('.player').click(function() {
-			$('.player').removeClass('active');
-			$(this).addClass('active');
-			$('.details .name').html($('.active .name').html());
-			$('.details .controls').html('<input id="addPoints" type="submit" value="Add 5 points"/>');
-			$('#addPoints').click(function() {
-				socket.request('/players/update',{
-					id: $('.active').attr('id'),
-					score: + $('.active').find('.score').html() + 5
-				},updateScoreDom);
-			});
-		});
-		socket.on('message', function(message){
-			if (message.model == 'players' && message.verb == 'update') {
-				updateScoreDom(message.data);
-			}
-		});
-	});
+// Leaderboard App Start Here
+var Leaderboard = {};
+
+// Template Router
+var template = function(name, context) {
+	var template = Handlebars.compile($('#'+name).html());
+	return template(context);
+}
+
+// Router
+Leaderboard.Router = Backbone.Router.extend({
+
+	routes:{
+		'':'index'
+	},
+
+	index:function(){
+
+		players = Leaderboard.Players;
+		var playerList = new Leaderboard.PlayersListView(players);
+		var playerDetails = new Leaderboard.PlayerView();
+		$('#content').append(playerList.el);
+		$('#content').append(playerDetails.el);
+	}
+})
+
+// Models
+Leaderboard.Player = Backbone.Model.extend({});
+
+Leaderboard.PlayerCollection =  Backbone.Collection.extend({
+	model: Leaderboard.Player,
+	url: '/players',
+	initialize: function () {
+		_.bindAll(this, 'update');
+	},
+	update: function (data) {
+		// make sure no duplicates, just in case
+		var exists = this.get(data.id);
+		if (!exists) {
+			this.add(data);
+		} else {
+			exists.set(data);
+		}
+	}
 });
-var updateScoreDom = function(response){
-	$('#' + response.id).find('.score').html(response.score);
-};
+
+// Views
+Leaderboard.PlayersListView = Backbone.View.extend({
+
+	tagName: 'div',
+	className: 'players',
+
+	initialize:function (players) {
+		_.bindAll(this, 'render');
+		this.players = players;
+		this.players.bind("reset", this.render, this);
+		this.players.bind("add", this.addPlayer, this);
+		this.render();
+	},
+
+	render:function (eventName) {
+		var self = this;
+		this.players.each(function (player) {
+			self.addPlayer(player)
+		});
+		return this;
+	},
+
+	addPlayer: function(player) {
+		var pliv = new Leaderboard.PlayersListItemView(player)
+		$(this.el).append(pliv.el);
+	}
+
+});
+
+Leaderboard.PlayersListItemView = Backbone.View.extend({
+	
+	tagName: 'div',
+	className: 'player',
+	events: {
+		'click': 'showPlayerDetails'
+	},
+	initialize: function (model) {
+		_.bindAll(this, 'showPlayerDetails');
+		this.model = model;
+		this.model.bind("change", this.render, this);
+		this.render();
+	},
+	render: function () {
+		$(this.el).html(template('tpl-player-list-item',this.model.toJSON()));
+		$(this.el).attr('id', this.model.id);
+		return this;
+	},
+	showPlayerDetails: function (eventName) {
+		$('.player').removeClass('active');
+		$(this.el).addClass('active');
+		var pv = new Leaderboard.PlayerView(this.model)
+		$('.details').replaceWith(pv.el);
+	}
+});
+
+
+Leaderboard.PlayerView = Backbone.View.extend({
+	
+	tagName: 'div',
+	className: 'details',
+	events: {
+		'click input#addPoints': 'addPoints'
+	},
+	initialize: function (model) {
+		_.bindAll(this, 'addPoints');
+		this.model = model;
+		this.render();
+	},
+	render: function () {
+		if (!this.model) {
+			$(this.el).html(template('tpl-player-details-default'));
+		} else {
+			$(this.el).html(template('tpl-player-details',this.model.toJSON()));
+		}
+		return this;
+	},
+	addPoints: function () {
+		console.log(this.model);
+		Leaderboard.socket.request('/players/update',{
+			id: this.model.get('id'),
+			score: +this.model.get('score') + 5
+		},Leaderboard.Players.update);
+	}
+});
+
+$(document).ready(function(){
+	var app = new Leaderboard.Router();	
+	Leaderboard.Players = new Leaderboard.PlayerCollection;
+	Leaderboard.socket = io.connect();
+	Leaderboard.socket.request('/players',{},function(response) {
+		_.each(response, function(player){
+			Leaderboard.Players.create(player);
+		})
+	});
+	Leaderboard.socket.on('message', function(message){
+		Leaderboard.Players.update(message.data);
+	});
+	Backbone.history.start();
+});
 </script>

@@ -1,3 +1,8 @@
+<script src="/js/jquery-1.9.1.min.js"></script>
+<script src="/js/handlebars.js"></script>
+<script src="/js/ember-1.0.0-rc.3.js"></script>
+<script src="/js/ember-data-latest.min.js"></script>
+
 <script type="text/x-handlebars">
 <header><a href="/example/ember">Sails.JS Examples: Ember</a></header>
 
@@ -97,9 +102,7 @@ socket.request('/players',{},function(response) {
 });
 
 socket.on('message', function(response) {
-	if (response.model == 'players' && response.verb == 'update') {
-		updateScoreDom(response.data);
-	}
+	updateScoreDom(response.data);
 });
 
 // Methods

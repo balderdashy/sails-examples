@@ -1,3 +1,5 @@
+<script src="/js/jquery-1.9.1.min.js"></script>
+
 <header><a href="/example/jQuery">Sails.JS Examples: jQuery</a></header>
 
 <div id="content">
@@ -16,10 +18,11 @@
 var players;
 var socket = io.connect();
 socket.request('/players',{},function(response) {
-	jQuery.each(response, function(key, player) {
-		$('.players').append('<div id="' + player.id + '" class="player"><span class="name">' + player.name + '</span><span class="score">' + player.score + '</span></div>');
-	});
+
 	jQuery(document).ready(function() {
+		jQuery.each(response, function(key, player) {
+		$('.players').append('<div id="' + player.id + '" class="player"><span class="name">' + player.name + '</span><span class="score">' + player.score + '</span></div>');
+		});
 		$('.player').click(function() {
 			$('.player').removeClass('active');
 			$(this).addClass('active');
@@ -33,9 +36,7 @@ socket.request('/players',{},function(response) {
 			});
 		});
 		socket.on('message', function(message){
-			if (message.model == 'players' && message.verb == 'update') {
-				updateScoreDom(message.data);
-			}
+			updateScoreDom(message.data);
 		});
 	});
 });

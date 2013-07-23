@@ -1,0 +1,86 @@
+<script src="/js/jquery-1.9.1.min.js"></script>
+<script src="/js/knockout-2.3.0.js"></script>
+<script src="/js/knockout.mapping-latest.js"></script>
+
+<header><a href="/example/jQuery">Sails.JS Examples: Knockout JS</a></header>
+
+<div id="content">
+	<div class='players' data-bind="foreach: players">
+		<div data-bind="attr: {id: id, class:$data==$parent.activePlayer()?'active':''}, click:$parent.setActive" class="player">
+			<span class="name" data-bind="text: name"></span><span class="score" data-bind="text: score"></span>
+		</div>
+	</div>
+
+	<div class='details'>
+		
+			<div class="name">
+				<!-- ko ifnot:activePlayer-->
+				Click a Player to select!
+				<!-- /ko -->
+
+				<!-- ko if:activePlayer() -->
+				<span data-bind="text: activePlayer().name()"></span>
+				<!-- /ko -->
+			</div>
+
+		<div class="controls">
+			<input data-bind="visible:activePlayer() !== undefined, click:addPoints" 
+			id="addPoints" type="submit" value="Add 5 points"/>
+		</div>
+		
+	</div>
+</div>
+
+<footer class="clear">&copy;2013 Nobody<div class="float_right"><a href="/">Examples</a></div></footer>
+
+<script>
+//Global variable (Should never do this)
+var viewModel;
+
+var updateScoreDom = function(response){
+	//TODO
+};
+
+//Main form viewmodel
+var MainViewModel = function(data) {
+    var self = this;
+
+    self.players = ko.observableArray();
+    self.activePlayer = ko.observable();
+
+	ko.mapping.fromJS(data, {}, self.players);
+
+    self.setActive = function(player){
+    	self.activePlayer(player);
+    }
+
+    self.addPoints = function(){
+		if (self.activePlayer === undefined) return;
+
+		var player = self.activePlayer();
+		var newScore = player.score() + 5;
+		player.score(newScore);
+
+		socket.request('/players/update',{
+			id: player.id(),
+			score: player.score()
+		},updateScoreDom);
+	};
+}
+
+var socket = io.connect();
+socket.request('/players',{},function(response) {
+	$(document).ready(function() {
+		viewModel = new MainViewModel(response);
+		ko.applyBindings(viewModel);
+	});
+
+	socket.on('message', function(message){
+		if (viewModel !== undefined && message.data !== undefined){
+			var updatedPlayer = ko.utils.arrayFirst(viewModel.players(), function(item){ return item.id() == message.data.id});
+			updatedPlayer.score(message.data.score);
+		}
+	});
+});
+
+</script>

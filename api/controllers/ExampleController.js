@@ -18,7 +18,10 @@ var ExampleController = {
 
 	ember: function(req, res) {
 		res.view();
-	}
+	},
 
+	knockout: function(req, res){
+		res.view();
+	}
 };
 module.exports = ExampleController;

@@ -42,7 +42,7 @@ We will create a single Messages entity:
 This has created the Messages model, and controller. Let's open the model from the /api directory of your Sails application, and add the following attributes:
 
     module.exports = {
-        attributes: {<
+        attributes: {
         text: 'string'
         }
     };
